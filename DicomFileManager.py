@@ -1,6 +1,10 @@
 import os
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import messagebox
+from PIL import Image, ImageTk
+import pydicom
+import numpy as np
 
 from DicomFileHandler import DicomFileHandler
 
@@ -29,6 +33,7 @@ class DicomFileManager:
 
         self.unprocessed_listbox = tk.Listbox(self.left_frame, height=30, width=40, font=self.default_font)
         self.unprocessed_listbox.pack()
+        self.unprocessed_listbox.bind('<<ListboxSelect>>', self.on_file_select)
 
         # 中间：DICOM 图像显示区域
         self.middle_frame = tk.Frame(self.root)
@@ -164,3 +169,24 @@ class DicomFileManager:
         """跳过当前文件"""
         self.file_handler.skip_file()
         self.update_unprocessed_list()
+
+    def on_file_select(self, event):
+        """当选择文件时显示 DICOM 图像"""
+        selected_index = self.unprocessed_listbox.curselection()
+        if selected_index:
+            selected_file = self.file_handler.get_unprocessed_files()[selected_index[0]]
+            self.display_dicom_image(selected_file)
+
+    def display_current_image(self):
+        """ 显示当前 DICOM 图像 """
+        current_file = self.file_handler.get_current_file()
+        if current_file:
+            try:
+                ds = pydicom.dcmread(current_file)
+                image_data = ds.pixel_array
+                image = Image.fromarray((image_data / np.max(image_data) * 255).astype(np.uint8))  # 转为灰度图
+                image = image.resize((800, 800))  # 调整图像大小
+                self.photo = ImageTk.PhotoImage(image)
+                self.canvas.create_image(400, 400, image=self.photo)  # 在画布上显示图像
+            except Exception as e:
+                messagebox.showerror("错误", f"无法显示图像: {e}")
